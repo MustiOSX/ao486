@@ -58,7 +58,7 @@ BIOS_BUILD_DATE = "-DBIOS_BUILD_DATE=\"$(BUILDDATE)\""
 	$(CXX) -c $(BX_INCDIRS) $(CXXFLAGS) $(LOCAL_CXXFLAGS) $< -o $@
 
 
-bios: biossums BIOS-bochs-legacy
+all: biossums bios
 
 clean:
 	rm -f  *.o *.a *.s _rombios*_.c rombios*.txt rombios*.sym
@@ -69,16 +69,17 @@ dist-clean: clean
 	rm -f  Makefile
 
 bios-clean:
-	rm -f  BIOS-bochs-*
+	rm -f  bios
 
-BIOS-bochs-legacy: rombios.c apmbios.S biossums rombios.h
+bios: rombios.c apmbios.S biossums rombios.h
 	$(GCC32) $(BIOS_BUILD_DATE) -DLEGACY -E -P $< > _rombiosl_.c
 	$(BCC) -o rombiosl.s -C-c -D__i86__ -0 -S _rombiosl_.c
 	sed -e 's/^\.text//' -e 's/^\.data//' rombiosl.s > _rombiosl_.s
 	$(AS86) _rombiosl_.s -b tmpl.bin -u- -w- -g -0 -j -O -l rombiosl.txt
 	-perl ${srcdir}/makesym.perl < rombiosl.txt > rombiosl.sym
-	mv tmpl.bin $@
-	./biossums $@
+	mkdir -p ../../sd/bios
+	mv tmpl.bin ../../sd/bios/$@
+	./biossums ../../sd/bios/$@
 	rm -f  _rombiosl_.s
 
 
