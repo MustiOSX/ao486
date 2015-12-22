@@ -3,21 +3,21 @@
 # DO NOT MODIFY
 
 
-# 
+#
 # ao486 "ao486" v1.0
 #  2014.08.18.22:50:23
-# 
-# 
+#
+#
 
-# 
+#
 # request TCL package from ACDS 14.0
-# 
+#
 package require -exact qsys 14.0
 
 
-# 
+#
 # module ao486
-# 
+#
 set_module_property DESCRIPTION ""
 set_module_property NAME ao486
 set_module_property VERSION 1.0
@@ -33,9 +33,9 @@ set_module_property ALLOW_GREYBOX_GENERATION false
 set_module_property REPORT_HIERARCHY false
 
 
-# 
+#
 # file sets
-# 
+#
 add_fileset QUARTUS_SYNTH QUARTUS_SYNTH "" ""
 set_fileset_property QUARTUS_SYNTH TOP_LEVEL ao486
 set_fileset_property QUARTUS_SYNTH ENABLE_RELATIVE_INCLUDE_PATHS false
@@ -105,19 +105,19 @@ add_fileset_file simple_fifo.v VERILOG PATH ../common/simple_fifo.v
 add_fileset_file simple_ram.v VERILOG PATH ../common/simple_ram.v
 
 
-# 
+#
 # parameters
-# 
+#
 
 
-# 
+#
 # display items
-# 
+#
 
 
-# 
+#
 # connection point clock
-# 
+#
 add_interface clock clock end
 set_interface_property clock clockRate 0
 set_interface_property clock ENABLED true
@@ -129,9 +129,9 @@ set_interface_property clock SVD_ADDRESS_GROUP ""
 add_interface_port clock clk clk Input 1
 
 
-# 
+#
 # connection point reset_sink
-# 
+#
 add_interface reset_sink reset end
 set_interface_property reset_sink associatedClock clock
 set_interface_property reset_sink synchronousEdges DEASSERT
@@ -144,9 +144,9 @@ set_interface_property reset_sink SVD_ADDRESS_GROUP ""
 add_interface_port reset_sink rst_n reset_n Input 1
 
 
-# 
+#
 # connection point avalon_memory
-# 
+#
 add_interface avalon_memory avalon start
 set_interface_property avalon_memory addressUnits SYMBOLS
 set_interface_property avalon_memory associatedClock clock
@@ -182,9 +182,9 @@ add_interface_port avalon_memory avm_readdatavalid readdatavalid Input 1
 add_interface_port avalon_memory avm_readdata readdata Input 32
 
 
-# 
+#
 # connection point interrupt
-# 
+#
 add_interface interrupt conduit end
 set_interface_property interrupt associatedClock clock
 set_interface_property interrupt associatedReset ""
@@ -199,9 +199,9 @@ add_interface_port interrupt interrupt_vector interrupt_vector Input 8
 add_interface_port interrupt interrupt_done interrupt_done Output 1
 
 
-# 
+#
 # connection point avalon_io
-# 
+#
 add_interface avalon_io avalon start
 set_interface_property avalon_io addressUnits SYMBOLS
 set_interface_property avalon_io associatedClock clock
@@ -235,3 +235,32 @@ add_interface_port avalon_io avalon_io_write write Output 1
 add_interface_port avalon_io avalon_io_writedata writedata Output 32
 add_interface_port avalon_io avalon_io_waitrequest waitrequest Input 1
 
+
+#
+# connection point export_dbg
+#
+add_interface export_dbg conduit end
+set_interface_property export_dbg associatedClock clock
+set_interface_property export_dbg associatedReset reset_sink
+set_interface_property export_dbg ENABLED true
+set_interface_property export_dbg EXPORT_OF ""
+set_interface_property export_dbg PORT_NAME_MAP ""
+set_interface_property export_dbg CMSIS_SVD_VARIABLES ""
+set_interface_property export_dbg SVD_ADDRESS_GROUP ""
+
+add_interface_port export_dbg SW export Input 18
+add_interface_port export_dbg tb_finish_instr export Output 1
+add_interface_port export_dbg dbg_io_address export Output 16
+add_interface_port export_dbg dbg_io_byteenable export Output 4
+add_interface_port export_dbg dbg_io_write export Output 1
+add_interface_port export_dbg dbg_io_read export Output 1
+add_interface_port export_dbg dbg_io_data export Output 32
+add_interface_port export_dbg dbg_int_vector export Output 8
+add_interface_port export_dbg dbg_int export Output 1
+add_interface_port export_dbg dbg_exc_vector export Output 8
+add_interface_port export_dbg dbg_exc export Output 1
+add_interface_port export_dbg dbg_mem_address export Output 32
+add_interface_port export_dbg dbg_mem_byteenable export Output 4
+add_interface_port export_dbg dbg_mem_write export Output 1
+add_interface_port export_dbg dbg_mem_read export Output 1
+add_interface_port export_dbg dbg_mem_data export Output 32
