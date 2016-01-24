@@ -18,6 +18,7 @@
 #include "iodev/iodev.h"
 #include "iodev/virt_timer.h"
 
+#define PLUGINS_DIR "/home/z/opt/bochs/lib/bochs/plugins"
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
@@ -62,12 +63,12 @@ builtinRegisterIOReadHandler(void *thisPtr, ioReadHandler_t callback,
 //  ret = bx_devices.register_io_read_handler (thisPtr, callback, base, name, mask);
 //  pluginlog->ldebug("plugin %s registered I/O read  address at %04x", name, base);
 //  return ret;
-    
+
 printf("builtinRegisterIOReadHandler: %s %04x %d\n", name, base, mask);
     io_read_handlers[base] = callback;
     io_read_mask[base]     = mask;
     io_read_this[base]     = thisPtr;
-    
+
     return 1;
 }
 
@@ -85,7 +86,7 @@ printf("builtinRegisterIOWriteHandler: %s %04x %d\n", name, base, mask);
     io_write_handlers[base] = callback;
     io_write_mask[base]     = mask;
     io_write_this[base]     = thisPtr;
-    
+
     return 1;
 }
 
@@ -100,7 +101,7 @@ printf("builtinRegisterDefaultIOReadHandler: %s %x\n", name, mask);
     io_read_handlers[65536] = callback;
     io_read_mask[65536]     = mask;
     io_read_this[65536]     = thisPtr;
-    
+
     return 1;
 }
 
@@ -115,14 +116,14 @@ printf("builtinRegisterDefaultIOWriteHandler: %s %x\n", name, mask);
     io_write_handlers[65536] = callback;
     io_write_mask[65536]     = mask;
     io_write_this[65536]     = thisPtr;
-    
+
     return 1;
 }
 
 void pluginRegisterDeviceDevmodel(plugin_t *plugin, plugintype_t type, bx_devmodel_c *devmodel, const char *name) {
 printf("pluginRegisterDeviceDevmodel() for %s\n", name);
-
-devmodel->init();
+  if (strcmp(name, "cmos") == 0) bx_devices.pluginCmosDevice->setonoff(LOGLEV_INFO, 1);
+  devmodel->init();
 }
 
 //------------------------------------------------------------------------------
@@ -131,7 +132,7 @@ devmodel->init();
 
 const char *enum_choices[] = { "0_choice", "1_choice", NULL };
 
-#define BOCHS_DEVS_IPS 480000
+#define BOCHS_DEVS_IPS 4000000
 
 BxEvent *callback(void *theclass, BxEvent *event) {
 printf("bochsDevs::callback()\n");
@@ -145,7 +146,7 @@ class bochsDevs_sim : public bx_simulator_interface_c {
 
     bx_param_bool_c *get_param_bool(const char *pname, bx_param_c *base) {
 printf("bochsDevs_sim::get_param_bool(%s, base=%s)\n", pname, (base==NULL)? "(nil)" : (base->get_name() == NULL)? "(nill name)" : base->get_name());
-        
+
         if(base != NULL) {
             bx_param_c *param = ((bx_list_c *)base)->get_by_name(pname);
             return (bx_param_bool_c *)param;
@@ -153,31 +154,33 @@ printf("bochsDevs_sim::get_param_bool(%s, base=%s)\n", pname, (base==NULL)? "(ni
 
         if(strcmp(pname, BXPN_PORT_E9_HACK) == 0)           return new bx_param_bool_c(NULL, "port_e9_hack", "", "", 0);
         if(strcmp(pname, BXPN_CMOSIMAGE_ENABLED) == 0)      return new bx_param_bool_c(NULL, "enabled",      "", "", 0);
-        
+
         if(strcmp(pname, BXPN_FLOPPYSIGCHECK) == 0)         return new bx_param_bool_c(NULL, "floppy_sig_check", "", "", 0);
         if(strcmp(pname, BXPN_PCI_ENABLED) == 0)            return new bx_param_bool_c(NULL, "enabled",          "", "", 0);
-        
+
         if(strcmp(pname, BXPN_PRIVATE_COLORMAP) == 0)       return new bx_param_bool_c(NULL, "private_colormap", "", "", 0);
-        
+
         if(strcmp(pname, BXPN_KBD_USEMAPPING) == 0)         return new bx_param_bool_c(NULL, "use_mapping", "", "", 0);
-        
+
         if(strcmp(pname, BXPN_MOUSE_ENABLED) == 0)          return new bx_param_bool_c(NULL, "enabled", "", "", 0);
-        
+        if(strcmp(pname, BXPN_VGA_REALTIME) == 0)           return new bx_param_bool_c(NULL, "enabled", "", "", 0);
+
         return NULL;
     }
     bx_param_string_c *get_param_string(const char *pname, bx_param_c *base) {
 printf("bochsDevs_sim::get_param_string(%s, base=%s)\n", pname, (base==NULL)? "(nil)" : (base->get_name() == NULL)? "(nill name)" : base->get_name());
-        
+
         if(base != NULL) {
             bx_param_c *param = ((bx_list_c *)base)->get_by_name(pname);
             return (bx_param_string_c *)param;
         }
-        
+
         if(strcmp(pname, BXPN_VGA_EXTENSION) == 0)          return new bx_param_string_c(NULL, "vga_extension",      "", "", "none");
         if(strcmp(pname, BXPN_DISPLAYLIB_OPTIONS) == 0)     return new bx_param_string_c(NULL, "displaylib_options", "", "", "");
-        
+
         if(strcmp(pname, BXPN_VGA_ROM_PATH) == 0)     return new bx_param_string_c(NULL, "path", "", "", "");
-        
+        if(strcmp(pname, BXPN_USER_SHORTCUT) == 0)     return new bx_param_string_c(NULL, "none", "", "", "none");
+
         return NULL;
     }
     bx_param_enum_c *get_param_enum(const char *pname, bx_param_c *base) {
@@ -189,43 +192,35 @@ printf("bochsDevs_sim::get_param_enum(%s, base=%s)\n", pname, (base==NULL)? "(ni
         }
 
         if(strcmp(pname, BXPN_CLOCK_SYNC) == 0)       return new bx_param_enum_c(NULL, "clock_sync", "", "", enum_choices, 0);
-        
-        if(strcmp(pname, BXPN_FLOPPYA_DEVTYPE) == 0)  return new bx_param_enum_c(NULL, "devtype", "", "", enum_choices, 0);
-        if(strcmp(pname, BXPN_FLOPPYA_TYPE) == 0)     return new bx_param_enum_c(NULL, "type",    "", "", enum_choices, 0);
-        if(strcmp(pname, BXPN_FLOPPYA_STATUS) == 0)   return new bx_param_enum_c(NULL, "status",  "", "", enum_choices, 0);
-        
-        if(strcmp(pname, BXPN_FLOPPYB_DEVTYPE) == 0)  return new bx_param_enum_c(NULL, "devtype", "", "", enum_choices, 0);
-        if(strcmp(pname, BXPN_FLOPPYB_TYPE) == 0)     return new bx_param_enum_c(NULL, "type",    "", "", enum_choices, 0);
-        if(strcmp(pname, BXPN_FLOPPYB_STATUS) == 0)   return new bx_param_enum_c(NULL, "status",  "", "", enum_choices, 0);
-        
+
         if(strcmp(pname, BXPN_BOOTDRIVE1) == 0)       return new bx_param_enum_c(NULL, "boot_drive1", "", "", enum_choices, BX_BOOT_FLOPPYA);
         if(strcmp(pname, BXPN_BOOTDRIVE2) == 0)       return new bx_param_enum_c(NULL, "boot_drive2", "", "", enum_choices, BX_BOOT_FLOPPYA);
         if(strcmp(pname, BXPN_BOOTDRIVE3) == 0)       return new bx_param_enum_c(NULL, "boot_drive3", "", "", enum_choices, BX_BOOT_FLOPPYA);
-        
+
         if(strcmp(pname, BXPN_MOUSE_TYPE) == 0)       return new bx_param_enum_c(NULL, "type", "", "", enum_choices, BX_MOUSE_TYPE_PS2);
-        
+
         if(strcmp(pname, BXPN_MOUSE_TOGGLE) == 0)      return new bx_param_enum_c(NULL, "toggle", "", "", enum_choices, BX_MOUSE_TOGGLE_CTRL_F10);
-        
+
         if(strcmp(pname, BXPN_KBD_TYPE) == 0)         return new bx_param_enum_c(NULL, "type", "", "", enum_choices, BX_KBD_AT_TYPE);
-        
+
         return NULL;
     }
     bx_param_num_c *get_param_num(const char *pname, bx_param_c *base) {
 printf("bochsDevs_sim::get_param_num(%s, base=%s)\n", pname, (base==NULL)? "(nil)" : (base->get_name() == NULL)? "(nill name)" : base->get_name());
-        
+
         if(base != NULL) {
             bx_param_c *param = ((bx_list_c *)base)->get_by_name(pname);
             return (bx_param_num_c *)param;
         }
 
-        if(strcmp(pname, BXPN_CLOCK_TIME0) == 0)  return new bx_param_num_c(NULL, "time0",   "", "", 100,100,100);
-        
+        if(strcmp(pname, BXPN_CLOCK_TIME0) == 0)  return new bx_param_num_c(NULL, "time0",   "", "", 100,2000000000,1453197733);
+
         if(strcmp(pname, BXPN_KBD_SERIAL_DELAY) == 0) return new bx_param_num_c(NULL, "serial_delay",   "", "", 100,100,100);
         if(strcmp(pname, BXPN_KBD_PASTE_DELAY) == 0)  return new bx_param_num_c(NULL, "paste_delay",   "", "", 100,100,100);
         if(strcmp(pname, BXPN_MOUSE_ENABLED) == 0)    return new bx_param_num_c(NULL, "enabled",   "", "", 1,1,1);
-        
+
         if(strcmp(pname, BXPN_VGA_UPDATE_FREQUENCY) == 0)   return new bx_param_num_c(NULL, "vga_update_frequency",   "", "", 500000,500000,500000);
-        
+
         if(strcmp(pname, BXPN_IPS) == 0)   return new bx_param_num_c(NULL, "ips",   "", "", BOCHS_DEVS_IPS, BOCHS_DEVS_IPS, BOCHS_DEVS_IPS);
         return NULL;
     }
@@ -245,6 +240,8 @@ printf("bochsDevs_sim::get_param_num(%s, base=%s)\n", pname, (base==NULL)? "(nil
         }
         if(strcmp(pname, BXPN_FLOPPYA) == 0 || strcmp(pname, BXPN_FLOPPYB) == 0) {
             bx_list_c *list = new bx_list_c(NULL);
+            list->add(new bx_param_enum_c(NULL, "devtype", "", "", enum_choices, 0));
+            list->add(new bx_param_enum_c(NULL, "type",    "", "", enum_choices, 0));
             list->add(new bx_param_enum_c(NULL,   "status",   "", "", enum_choices, 0));
             list->add(new bx_param_bool_c(NULL,   "readonly", "", "", 1));
             list->add(new bx_param_string_c(NULL, "path",     "", "", "none"));
@@ -258,18 +255,26 @@ printf("bochsDevs_sim::get_param_num(%s, base=%s)\n", pname, (base==NULL)? "(nil
             list->add(new bx_param_num_c(NULL,    "heads",       "", "", 16,16,16));
             list->add(new bx_param_num_c(NULL,    "spt",         "", "", 63,63,63));
             list->add(new bx_param_enum_c(NULL,   "mode",        "", "", enum_choices, BX_HDIMAGE_MODE_FLAT));
-            list->add(new bx_param_string_c(NULL, "path",        "", "", "/home/alek/temp/bochs-run/hd.img"));
+            list->add(new bx_param_string_c(NULL, "path",        "", "", "/home/z/z/redhat6.img"));
             list->add(new bx_param_string_c(NULL, "journal",     "", "", ""));
             list->add(new bx_param_enum_c(NULL,   "translation", "", "", enum_choices, BX_ATA_TRANSLATION_NONE));
+            return list;
+        }
+        if(strcmp(pname, BXPN_SOUND_SPEAKER) == 0) {
+            bx_list_c *list = new bx_list_c(NULL);
+            list->add(new bx_param_bool_c(NULL,   "enabled", "", "", 1));
+            list->add(new bx_param_enum_c(NULL,   "mode", "", "", enum_choices, 0));
             return list;
         }
         if(strcmp(pname, BXPN_ATA1_MASTER) == 0 || strcmp(pname, BXPN_ATA2_MASTER) == 0 || strcmp(pname, BXPN_ATA3_MASTER) == 0 ||
            strcmp(pname, BXPN_ATA0_SLAVE) == 0  || strcmp(pname, BXPN_ATA1_SLAVE) == 0  || strcmp(pname, BXPN_ATA2_SLAVE) == 0  || strcmp(pname, BXPN_ATA3_SLAVE) == 0)
         {
             bx_list_c *list = new bx_list_c(NULL);
-            list->add(new bx_param_enum_c(NULL, "type", "", "", enum_choices, BX_ATA_DEVICE_NONE));
+            list->add(new bx_param_enum_c(NULL,   "type", "", "", enum_choices, BX_ATA_DEVICE_NONE));
             return list;
         }
+
+
         return NULL;
     }
     void set_notify_callback(bxevent_handler func, void *arg) {
@@ -280,7 +285,7 @@ printf("bochsDevs_sim::get_param_num(%s, base=%s)\n", pname, (base==NULL)? "(nil
     void get_notify_callback(bxevent_handler *func, void **arg) {
         *func = bxevent_callback;
         *arg = bxevent_callback_data;
-    }  
+    }
 };
 
 bx_simulator_interface_c *SIM;
@@ -291,15 +296,15 @@ bx_simulator_interface_c *SIM;
 
 void logfunctions::panic(const char *fmt, ...) {
     printf("#bochsDevs::logfunctions::panic(): ");
-    
+
     va_list ap;
     va_start(ap, fmt);
     vprintf(fmt, ap);
     va_end(ap);
-    
+
     printf("\n");
     fflush(stdout);
-    
+
     if(strstr(fmt, "exception with no resolution") != NULL) {
         printf("start_shutdown: 0\n");
         printf("\n");
@@ -312,40 +317,124 @@ void logfunctions::panic(const char *fmt, ...) {
 }
 void logfunctions::error(const char *fmt, ...) {
     printf("#bochsDevs::logfunctions::error(): ");
-    
+
     va_list ap;
     va_start(ap, fmt);
     vprintf(fmt, ap);
     va_end(ap);
-    
+
     printf("\n");
     fflush(stdout);
 }
+
+FILE *logfd;
+
+//  iofunctions::out(level, prefix, fmt, ap)
+//  DO NOT nest out() from ::info() and the like.
+//    fmt and ap retained for direct printinf from iofunctions only!
+
+void out(int level, const char *prefix, const char *fmt, va_list ap)
+{
+  char c=' ', logprefix[] = "%e%d";
+  switch (level) {
+    case LOGLEV_INFO: c='i'; break;
+    case LOGLEV_PANIC: c='p'; break;
+    case LOGLEV_ERROR: c='e'; break;
+    case LOGLEV_DEBUG: c='d'; break;
+    default: break;
+  }
+
+  char *s=logprefix;
+  while(*s) {
+    switch(*s) {
+      case '%':
+        if(*(s+1)) s++;
+        else break;
+        switch(*s) {
+          case 'd':
+            fprintf(logfd, "%s", prefix==NULL?"":prefix);
+            break;
+          case 't':
+            fprintf(logfd, FMT_TICK, bx_pc_system.time_ticks());
+            break;
+          case 'e':
+            fprintf(logfd, "%c", c);
+            break;
+          case '%':
+            fprintf(logfd,"%%");
+            break;
+          default:
+            fprintf(logfd,"%%%c",*s);
+        }
+        break;
+      default :
+        fprintf(logfd,"%c",*s);
+    }
+    s++;
+  }
+
+  fprintf(logfd," ");
+
+  if(level==LOGLEV_PANIC)
+    fprintf(logfd, ">>PANIC<< ");
+
+  vfprintf(logfd, fmt, ap);
+  fprintf(logfd, "\n");
+  fflush(logfd);
+}
+
+
 void logfunctions::ldebug(const char *fmt, ...) {
-    printf("#bochsDevs::logfunctions::debug(): ");
-    
-    va_list ap;
-    va_start(ap, fmt);
-    vprintf(fmt, ap);
-    va_end(ap);   
-    
-    printf("\n");
-    fflush(stdout);
+  va_list ap;
+
+  if(!onoff[LOGLEV_DEBUG]) return;
+
+  va_start(ap, fmt);
+  out(LOGLEV_DEBUG, prefix, fmt, ap);
+  va_end(ap);
 }
+
 void logfunctions::info(const char *fmt, ...) {
-    printf("#bochsDevs::logfunctions::info(): ");
-    
-    va_list ap;
-    va_start(ap, fmt);
-    vprintf(fmt, ap);
-    va_end(ap);   
-    
-    printf("\n");
-    fflush(stdout);
+  va_list ap;
+
+  if(!onoff[LOGLEV_INFO]) return;
+
+  va_start(ap, fmt);
+  out(LOGLEV_INFO, prefix, fmt, ap);
+  va_end(ap);
 }
+
 void logfunctions::put(const char *n, const char *p) {
+  char *tmpbuf=strdup("[     ]");   // if we ever have more than 32 chars,
+                                    // we need to rethink this
+
+  if (tmpbuf == NULL)
+    return;                         // allocation not successful
+
+  if (name != NULL) {
+    free(name);             // free previously allocated memory
+    name = NULL;
+  }
+  name = strdup(n);
+
+  if (prefix != NULL) {
+    free(prefix);             // free previously allocated memory
+    prefix = NULL;
+  }
+
+  size_t len=strlen(p);
+  if (len > (strlen(tmpbuf) - 2)) {
+    len = strlen(tmpbuf) - 2;
+  }
+  for(size_t i=1;i <= len;i++) {
+    tmpbuf[i]=p[i-1];
+  }
+
+  prefix = tmpbuf;
 }
 void logfunctions::put(const char *p) {
+  const char *n = p;
+  put(n, p);
 }
 logfunctions::logfunctions() {
 }
@@ -429,7 +518,7 @@ BX_MEM_C::registerMemoryHandlers(void *param, memory_handler_t read_handler,
                 memory_handler_t write_handler, memory_direct_access_handler_t da_handler,
                 bx_phy_address begin_addr, bx_phy_address end_addr)
 {
-printf("bochsDevs::BX_MEM_C::registerMemoryHandlers(): %llx %llx\n", begin_addr, end_addr);
+printf("bochsDevs::BX_MEM_C::registerMemoryHandlers(): %x %x\n", begin_addr, end_addr);
     if(da_handler != NULL) {
         printf("bochsDevs::da_handler != NULL\n");
         exit(-1);
@@ -438,7 +527,7 @@ printf("bochsDevs::BX_MEM_C::registerMemoryHandlers(): %llx %llx\n", begin_addr,
         printf("bochsDevs::invalid address\n");
         exit(-1);
     }
-    
+
     vga_read_memory = read_handler;
     vga_write_memory= write_handler;
     vga_param       = param;
@@ -504,7 +593,7 @@ bx_pc_system_c::bx_pc_system_c() {
   timer[0].funct      = nullTimer;
   timer[0].this_ptr   = this;
   numTimers = 1; // So far, only the nullTimer.
-  
+
   //initialize()
   ticksTotal = 0;
   timer[0].timeToFire = NullTimerInterval;
@@ -562,7 +651,7 @@ int bx_pc_system_c::register_timer_ticks(void* this_ptr, bx_timer_handler_t func
     }
   }
 
-printf("bochsDevs::timer id %d registered for '%s'", i, id);
+printf("bochsDevs::timer id %d registered for '%s'\n", i, id);
   // If we didn't find a free slot, increment the bound, numTimers.
   if (i==numTimers)
     numTimers++; // One new timer installed.
@@ -575,7 +664,7 @@ int bx_pc_system_c::register_timer(void *this_ptr, void (*funct)(void *),
   Bit32u useconds, bx_bool continuous, bx_bool active, const char *id)
 {
 printf("bochsDevs::bx_pc_system_c::register_timer()\n");
-    
+
     // Convert useconds to number of ticks.
   Bit64u ticks = (Bit64u) (double(useconds) * m_ips);
 
@@ -641,6 +730,11 @@ void bx_pc_system_c::deactivate_timer(unsigned i) {
     timer[i].active = 0;
 }
 
+void bx_pc_system_c::setTimerParam(unsigned timerIndex, Bit32u param)
+{
+  timer[timerIndex].param = param;
+}
+
 Bit64u bx_pc_system_c::time_usec() {
   return (Bit64u) (((double)(Bit64s)time_ticks()) / m_ips);
 }
@@ -704,7 +798,7 @@ bool a20_state = true;
 
 void bx_pc_system_c::set_HRQ(bx_bool val) {
 printf("bochsDevs::bx_pc_system_c::set_HRQ() %d\n", val);
-    
+
     if(val) {
         bx_devices.pluginDmaDevice->raise_HLDA();
     }
@@ -735,14 +829,14 @@ void bx_pc_system_c::raise_INTR(void) {
 printf("bochsDevs::bx_pc_system_c::raise_INTR()\n");
 
     uint32 last = shared_ptr->interrupt_at_counter;
-    
+
     shared_ptr->interrupt_vector = bx_devices.pluginPicDevice->IAC();
-    
+
     uint32 v1 = shared_ptr->bochs486_pc.instr_counter + 5;
     uint32 v2 = shared_ptr->ao486.instr_counter + 5;
-    
+
     shared_ptr->interrupt_at_counter = (v1 > v2)? v1 : v2;
-    
+
 printf("interrupt: %02x\n", shared_ptr->interrupt_vector);
 
     FILE *interrupt_fp = fopen("interrupt.txt", "a");
@@ -755,41 +849,41 @@ public:
     capture_pic_stub_c(bx_pic_stub_c *orig) {
         this->orig = orig;
     }
-    
+
     virtual void raise_irq(unsigned irq_no) {
         FILE *fp = fopen("track.txt", "a");
         fprintf(fp, "raise_irq %d\n", irq_no);
         fclose(fp);
-        
+
         orig->raise_irq(irq_no);
     }
-    
+
     virtual void lower_irq(unsigned irq_no) {
         FILE *fp = fopen("track.txt", "a");
         fprintf(fp, "lower_irq %d\n", irq_no);
         fclose(fp);
-        
+
         orig->lower_irq(irq_no);
     }
-    
+
     virtual void set_mode(bx_bool ma_sl, Bit8u mode) {
         FILE *fp = fopen("track.txt", "a");
         fprintf(fp, "set_mode %d %d\n", ma_sl, mode);
         fclose(fp);
-        
+
         orig->set_mode(ma_sl, mode);
     }
-    
+
     virtual Bit8u IAC(void) {
         Bit8u ret = orig->IAC();
-        
+
         FILE *fp = fopen("track.txt", "a");
         fprintf(fp, "IAC %d\n", ret);
         fclose(fp);
-        
+
         return ret;
     }
-    
+
 private:
     bx_pic_stub_c *orig;
 };
@@ -876,7 +970,7 @@ bx_devices_c bx_devices;
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 
-const char *hdimage_mode_names[] = { 
+const char *hdimage_mode_names[] = {
   "flat",
   "concat",
   "external",
@@ -910,50 +1004,50 @@ bx_bool bx_user_quit;
 void register_plugin(const char *libname, const char *initname) {
 
     void *handle;
-    
+
     handle = dlopen(libname, RTLD_NOW | RTLD_GLOBAL);
-    
+
     if(handle == NULL) {
         char *error = dlerror();
-        
+
         printf("dlopen() error: %s\n", error);
         exit(-1);
     }
-    
-    
+
+
     plugin_init_t plugin_init = (plugin_init_t)dlsym(handle, initname);
     if(plugin_init == NULL) {
         char *error = dlerror();
-        
+
         printf("dlsym() error: %s\n", error);
-        
+
         dlclose(handle);
         exit(-2);
     }
-    
+
     plugin_init(NULL, PLUGTYPE_CORE, 0,NULL);
-    
+
     //dlclose(handle);
 }
 
 int main(int argc, char **argv) {
-    
+
     //map shared memory
     int fd = open("./../sim/sim_pc/shared_mem.dat", O_RDWR, S_IRUSR | S_IWUSR);
-    
+
     if(fd == -1) {
         perror("open() failed for shared_mem.dat");
         return -1;
     }
-    
+
     shared_ptr = (shared_mem_t *)mmap(NULL, sizeof(shared_mem_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    
+
     if(shared_ptr == MAP_FAILED) {
         perror("mmap() failed");
         close(fd);
         return -2;
     }
-    
+
     //wait for ack
 
     shared_ptr->bochsDevs_starting = STEP_REQ;
@@ -963,45 +1057,53 @@ int main(int argc, char **argv) {
         usleep(100000);
     }
     printf("done.\n");
-    
+
     //--------------------------------------------------------------------------
-    
+
     printf("bochsDevs\n");
-    
+
     FILE *debug_fp = fopen("output.txt", "w");
-    
+
     pluginRegisterIRQ = builtinRegisterIRQ;
-    
+
     pluginRegisterIOReadHandler = builtinRegisterIOReadHandler;
     pluginRegisterIOWriteHandler = builtinRegisterIOWriteHandler;
 
     pluginRegisterDefaultIOReadHandler = builtinRegisterDefaultIOReadHandler;
     pluginRegisterDefaultIOWriteHandler = builtinRegisterDefaultIOWriteHandler;
-    
-    
+
+
     SIM = new bochsDevs_sim();
-    
+
+    logfd = fopen("../bochs486/trace.txt", "a");
+
     bx_virt_timer.init();
-    
-    register_plugin("/opt/bochs-2.6.2/lib/bochs/plugins/libbx_unmapped.so.0.0.0",   "libunmapped_LTX_plugin_init");
-    register_plugin("/opt/bochs-2.6.2/lib/bochs/plugins/libbx_biosdev.so.0.0.0",    "libbiosdev_LTX_plugin_init");
-    register_plugin("/opt/bochs-2.6.2/lib/bochs/plugins/libbx_cmos.so.0.0.0",       "libcmos_LTX_plugin_init");
-    register_plugin("/opt/bochs-2.6.2/lib/bochs/plugins/libbx_dma.so.0.0.0",        "libdma_LTX_plugin_init");
-    register_plugin("/opt/bochs-2.6.2/lib/bochs/plugins/libbx_x.so.0.0.0",          "libx_LTX_plugin_init");
-    register_plugin("/opt/bochs-2.6.2/lib/bochs/plugins/libbx_floppy.so.0.0.0",     "libfloppy_LTX_plugin_init");
-    register_plugin("/opt/bochs-2.6.2/lib/bochs/plugins/libbx_hdimage.so.0.0.0",    "libhdimage_LTX_plugin_init");
-    register_plugin("/opt/bochs-2.6.2/lib/bochs/plugins/libbx_harddrv.so.0.0.0",    "libharddrv_LTX_plugin_init");
-    register_plugin("/opt/bochs-2.6.2/lib/bochs/plugins/libbx_iodebug.so.0.0.0",    "libiodebug_LTX_plugin_init");
-    register_plugin("/opt/bochs-2.6.2/lib/bochs/plugins/libbx_keyboard.so.0.0.0",   "libkeyboard_LTX_plugin_init");
-    register_plugin("/opt/bochs-2.6.2/lib/bochs/plugins/libbx_pic.so.0.0.0",        "libpic_LTX_plugin_init");
-    register_plugin("/opt/bochs-2.6.2/lib/bochs/plugins/libbx_pit.so.0.0.0",        "libpit_LTX_plugin_init");
-    register_plugin("/opt/bochs-2.6.2/lib/bochs/plugins/libbx_speaker.so.0.0.0",    "libspeaker_LTX_plugin_init");
-    register_plugin("/opt/bochs-2.6.2/lib/bochs/plugins/libbx_vga.so.0.0.0",        "libvga_LTX_plugin_init");
-    
+
+    register_plugin(PLUGINS_DIR "/libbx_unmapped.so.0.0.0",   "libunmapped_LTX_plugin_init");
+    register_plugin(PLUGINS_DIR "/libbx_biosdev.so.0.0.0",    "libbiosdev_LTX_plugin_init");
+    register_plugin(PLUGINS_DIR "/libbx_cmos.so.0.0.0",       "libcmos_LTX_plugin_init");
+    register_plugin(PLUGINS_DIR "/libbx_dma.so.0.0.0",        "libdma_LTX_plugin_init");
+    register_plugin(PLUGINS_DIR "/libbx_x.so.0.0.0",          "libx_LTX_plugin_init");
+    register_plugin(PLUGINS_DIR "/libbx_floppy.so.0.0.0",     "libfloppy_LTX_plugin_init");
+    register_plugin(PLUGINS_DIR "/libbx_hdimage.so.0.0.0",    "libhdimage_LTX_plugin_init");
+    register_plugin(PLUGINS_DIR "/libbx_harddrv.so.0.0.0",    "libharddrv_LTX_plugin_init");
+    register_plugin(PLUGINS_DIR "/libbx_iodebug.so.0.0.0",    "libiodebug_LTX_plugin_init");
+    register_plugin(PLUGINS_DIR "/libbx_keyboard.so.0.0.0",   "libkeyboard_LTX_plugin_init");
+    register_plugin(PLUGINS_DIR "/libbx_pic.so.0.0.0",        "libpic_LTX_plugin_init");
+    register_plugin(PLUGINS_DIR "/libbx_pit.so.0.0.0",        "libpit_LTX_plugin_init");
+    register_plugin(PLUGINS_DIR "/libbx_speaker.so.0.0.0",    "libspeaker_LTX_plugin_init");
+    register_plugin(PLUGINS_DIR "/libbx_vga.so.0.0.0",        "libvga_LTX_plugin_init");
+
+    // Activate debug messages
+    bx_devices.pluginHardDrive->setonoff(LOGLEV_DEBUG, 1);
+    bx_devices.pluginCmosDevice->setonoff(LOGLEV_DEBUG, 1);
+
     // misc. CMOS
+    bx_devices.pluginCmosDevice->reset(BX_RESET_HARDWARE);
+
     Bit64u memory_in_bytes = sizeof(shared_ptr->mem.bytes);
     Bit64u BASE_MEMORY_IN_K = 640;
-    
+
     Bit64u memory_in_k = memory_in_bytes / 1024;
     Bit64u extended_memory_in_k = memory_in_k > 1024 ? (memory_in_k - 1024) : 0;
     if (extended_memory_in_k > 0xfc00) extended_memory_in_k = 0xfc00;
@@ -1030,27 +1132,28 @@ int main(int argc, char **argv) {
 
     /* now perform checksum of CMOS memory */
     DEV_cmos_checksum();
-    
+
     //replace pic with capture
     capture_pic_stub_c *capture = new capture_pic_stub_c(bx_devices.pluginPicDevice);
     bx_devices.pluginPicDevice = capture;
-    
+
     uint32 last_instr_counter = 0;
+
     while(true) {
-        
+
         //---------------------------------------------------------------------- stop
-        
+
         if(shared_ptr->bochsDevs_stop == STEP_REQ) {
             shared_ptr->bochsDevs_stop = STEP_ACK;
             while(shared_ptr->bochsDevs_stop != STEP_IDLE) {
                 usleep(500);
             }
         }
-        
+
         //---------------------------------------------------------------------- irq
-        
+
         static step_t last_pit_irq_step = STEP_IDLE;
-        
+
         if(last_pit_irq_step == STEP_IDLE && shared_ptr->pit_irq_step == STEP_REQ) {
             bx_devices.pluginPicDevice->raise_irq(0);
             last_pit_irq_step = STEP_REQ;
@@ -1059,9 +1162,9 @@ int main(int argc, char **argv) {
             bx_devices.pluginPicDevice->lower_irq(0);
             last_pit_irq_step = STEP_IDLE;
         }
-        
+
         static step_t last_rtc_irq_step = STEP_IDLE;
-        
+
         if(last_rtc_irq_step == STEP_IDLE && shared_ptr->rtc_irq_step == STEP_REQ) {
             bx_devices.pluginPicDevice->raise_irq(8);
             last_rtc_irq_step = STEP_REQ;
@@ -1070,9 +1173,9 @@ int main(int argc, char **argv) {
             bx_devices.pluginPicDevice->lower_irq(8);
             last_rtc_irq_step = STEP_IDLE;
         }
-        
+
         static step_t last_floppy_irq_step = STEP_IDLE;
-        
+
         if(last_floppy_irq_step == STEP_IDLE && shared_ptr->floppy_irq_step == STEP_REQ) {
             bx_devices.pluginPicDevice->raise_irq(6);
             last_floppy_irq_step = STEP_REQ;
@@ -1081,9 +1184,9 @@ int main(int argc, char **argv) {
             bx_devices.pluginPicDevice->lower_irq(6);
             last_floppy_irq_step = STEP_IDLE;
         }
-        
+
         static step_t last_keyboard_irq_step = STEP_IDLE;
-        
+
         if(last_keyboard_irq_step == STEP_IDLE && shared_ptr->keyboard_irq_step == STEP_REQ) {
             bx_devices.pluginPicDevice->raise_irq(1);
             last_keyboard_irq_step = STEP_REQ;
@@ -1092,9 +1195,9 @@ int main(int argc, char **argv) {
             bx_devices.pluginPicDevice->lower_irq(1);
             last_keyboard_irq_step = STEP_IDLE;
         }
-        
+
         static step_t last_mouse_irq_step = STEP_IDLE;
-        
+
         if(last_mouse_irq_step == STEP_IDLE && shared_ptr->mouse_irq_step == STEP_REQ) {
             bx_devices.pluginPicDevice->raise_irq(12);
             last_mouse_irq_step = STEP_REQ;
@@ -1103,16 +1206,16 @@ int main(int argc, char **argv) {
             bx_devices.pluginPicDevice->lower_irq(12);
             last_mouse_irq_step = STEP_IDLE;
         }
-        
+
         //---------------------------------------------------------------------- service io
-        
+
         if(shared_ptr->combined.io_step == STEP_REQ) {
-            
+
             uint32 address = shared_ptr->combined.io_address & 0xFFFF;
             uint32 byteena = shared_ptr->combined.io_byteenable;
             uint32 value   = shared_ptr->combined.io_data;
             uint32 shifted = 0;
-            
+
             if(address == 0x01F0 || address == 0x01F4 || (address == 0x03F4 && byteena == 0x4) || address == 0x0040 || (address == 0x0060 && byteena == 0x2) ||
                (address == 0x0070 && (byteena == 0x1 || byteena == 0x02)) || (address == 0x03F4 && ((byteena >> 2) & 1) == 0) || address == 0x03F0 ||
                address == 0x0000 || address == 0x0004 || address == 0x0008 || address == 0x000C ||
@@ -1127,18 +1230,18 @@ int main(int argc, char **argv) {
                (address == 0x0020 && ((byteena >> 2) & 3) == 0) || (address == 0x00A0 && ((byteena >> 2) & 3) == 0) ||
                address == 0x8888 || address == 0x888C)
             {
-                //
+               /* //
             }
-            else {
+            else { */
                 if(shared_ptr->combined.io_is_write) {
                     FILE *fp = fopen("track.txt", "a");
                     fprintf(fp, "io wr %04x %x %08x\n", address, byteena, value);
                     fclose(fp);
                 }
-            
+
                 for(uint32 i=0; i<4; i++) {
                     if(byteena & 1) break;
-                    
+
                     shifted++;
                     address++;
                     byteena >>= 1;
@@ -1147,31 +1250,31 @@ int main(int argc, char **argv) {
                 uint32 length = 0;
                 for(uint32 i=0; i<4; i++) {
                     if(byteena & 1) length++;
-                    
+
                     byteena >>= 1;
                 }
-                
+
                 if(shared_ptr->combined.io_is_write) {
                     ioWriteHandler_t handler = io_write_handlers[address];
                     uint8 mask = io_write_mask[address];
                     void *this_ptr = io_write_this[address];
-                    
+
                     if(handler == NULL) {
                         handler = io_write_handlers[65536];
                         mask = io_write_mask[65536];
                     }
-                    
+
                     if(mask & length) {
                         ((bx_write_handler_t)handler)(this_ptr, address, value, length);
                     }
                     else {
                         printf("bochsDevs::io write mismatch: mask=%d, length=%d, address=%04x\n", mask, length, address);
                     }
-                    
+
                     if(address == 0x92) {
                         a20_state = (value & 2)? 1 : 0;
                     }
-                    
+
                     /*
                     if(address == 0x8888) {
                         fprintf(debug_fp, "%c", value & 0xFF);
@@ -1183,14 +1286,14 @@ int main(int argc, char **argv) {
                     ioReadHandler_t handler = io_read_handlers[address];
                     uint8 mask = io_read_mask[address];
                     void *this_ptr = io_read_this[address];
-                    
+
                     if(handler == NULL) {
                         handler = io_read_handlers[65536];
                         mask = io_read_mask[65536];
                     }
-                    
+
                     uint32 ret = 0xFFFFFF;
-                    
+
                     if(mask & length) {
                         ret = ((bx_read_handler_t)handler)(this_ptr, address, length);
                     }
@@ -1198,14 +1301,14 @@ int main(int argc, char **argv) {
                         printf("bochsDevs::io read mismatch: mask=%d, length=%d, address=%04x\n", mask, length, address);
                         ret = (length == 1)? 0xFF : (length == 2)? 0xFFFF : 0xFFFFFFFF;
                     }
-                    
+
                     if(address == 0x92) {
                         ret = (a20_state)? 0x02 : 0x00;
                     }
-                    
+
                     ret &= (length == 1)? 0xFF : (length == 2)? 0xFFFF : (length == 3)? 0xFFFFFF : 0xFFFFFFFF;
                     shared_ptr->combined.io_data = ret << (8*shifted);
-                    
+
                     FILE *fp = fopen("track.txt", "a");
                     fprintf(fp, "io rd %04x %x %08x\n", shared_ptr->combined.io_address & 0xFFFF, shared_ptr->combined.io_byteenable, shared_ptr->combined.io_data);
                     fclose(fp);
@@ -1213,19 +1316,18 @@ int main(int argc, char **argv) {
                 shared_ptr->combined.io_step = STEP_ACK;
             }
         }
-        
+
         //---------------------------------------------------------------------- service vga memory
-        
-        /*
+
         if(shared_ptr->combined.mem_step == STEP_REQ) {
             uint32 address = shared_ptr->combined.mem_address;
             uint32 byteena = shared_ptr->combined.mem_byteenable;
             uint32 value   = shared_ptr->combined.mem_data;
             uint32 shifted = 0;
-            
+
             for(uint32 i=0; i<4; i++) {
                 if(byteena & 1) break;
-                
+
                 shifted++;
                 address++;
                 byteena >>= 1;
@@ -1234,14 +1336,14 @@ int main(int argc, char **argv) {
             uint32 length = 0;
             for(uint32 i=0; i<4; i++) {
                 if(byteena & 1) length++;
-                
+
                 byteena >>= 1;
             }
-            
+
             if(address >= 0xA0000 && address < 0xC0000) {
                 if(shared_ptr->combined.mem_is_write) {
                     (vga_write_memory)(address, length, &value, vga_param);
-                    
+
                     FILE *fp = fopen("track.txt", "a");
                     fprintf(fp, "vga wr %08x %x %08x\n", address, byteena, value);
                     fclose(fp);
@@ -1249,10 +1351,10 @@ int main(int argc, char **argv) {
                 else {
                     uint32 ret = 0xFFFFFF;
                     (vga_read_memory)(address, length, &ret, vga_param);
-                    
+
                     ret &= (length == 1)? 0xFF : (length == 2)? 0xFFFF : (length == 3)? 0xFFFFFF : 0xFFFFFFFF;
                     shared_ptr->combined.mem_data = ret << (8*shifted);
-                    
+
                     FILE *fp = fopen("track.txt", "a");
                     fprintf(fp, "vga rd %08x %x %08x\n", shared_ptr->combined.mem_address, shared_ptr->combined.mem_byteenable, shared_ptr->combined.mem_data);
                     fclose(fp);
@@ -1260,12 +1362,11 @@ int main(int argc, char **argv) {
                 shared_ptr->combined.mem_step = STEP_ACK;
             }
         }
-        */
-        
+
         //----------------------------------------------------------------------
-        
+
         bx_gui->handle_events();
-        
+
         //bx_pc_system.tickn(1);
         //usleep(100);
         uint32 snapshot = shared_ptr->bochs486_pc.instr_counter;
@@ -1275,6 +1376,6 @@ int main(int argc, char **argv) {
         }
         usleep(10);
     }
-    
+
     return 0;
 }
