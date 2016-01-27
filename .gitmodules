@@ -1,5 +1,5 @@
 [submodule "bochsDevs/bochs"]
-	path = bochsDevs/bochs
+	path = sim/bochs-soc/bochs
 	url = git@github.com:marmolejo/bochs.git
 	branch = bochs-devs
 [submodule "vgabios"]
